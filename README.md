@@ -1,4 +1,7 @@
-Markdown# 🎓 Alumni Tracking System
+
+
+```markdown
+# 🎓 Alumni Tracking System
 
 A comprehensive backend system to track Management Information Systems (MIS) graduates. Built as a part of the Web Programming (YBSB3001) course, this project provides both a RESTful JSON API and a server-side rendered Web UI.
 
@@ -56,10 +59,128 @@ AlumniTrackingSystem/
 ├── .env.example                         # Template, committed to git
 ├── ddd.md                               # Data Design Documentation
 └── README.md
-🚦 Getting Started1. Clone the repositoryBashgit clone [https://github.com/your-username/alumni.git](https://github.com/your-username/alumni.git)
+
+```
+
+---
+
+## 🚦 Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone [https://github.com/your-username/alumni.git](https://github.com/your-username/alumni.git)
 cd alumni
-(Not: your-username kısmını kendi GitHub kullanıcı adınızla değiştirin.)2. Configure Environment VariablesCreate your environment file from the template:Bashcp .env.example .env
-Open .env and set your own values. Never commit .env to Git.VariableUsed ByDescriptionPOSTGRES_USERdbDatabase user created on first start.POSTGRES_PASSWORDdbPassword for the database user.POSTGRES_DBdbName of the database.POSTGRES_PORTdbHost port mapped to PostgreSQL (default 5432).API_PORTapiHost port mapped to the FastAPI app (default 8000).DATABASE_URLapiConnection string: postgresql://USER:PASSWORD@db:5432/DB_NAME.Note: Database credentials only apply when the volume is created for the first time. To apply new values, run docker compose down -v (this deletes stored data).3. Start the SystemBashdocker compose up -d
-4. Run Migrations (Create Tables)Bashdocker compose exec api alembic upgrade head
-5. Access the AppAPI Docs (Swagger UI): http://localhost:8000/api/swagger (Auto-updated with every endpoint)Health Check: GET /api/health🗄 Database Documentation & MigrationsThe single source of truth for the database design is ddd.md (Data Design Documentation). Every change to the database (new table, column, constraint, index, or relationship) must be documented in ddd.md in the same commit.The database schema is created by Alembic migrations (located in migrations/versions/).CommandMeaningdocker compose exec api alembic upgrade headCreate/update the tables to the latest version.docker compose exec api alembic currentShow the current database version.docker compose exec api alembic downgrade baseUndo all migrations (drops the tables and their data).To inspect tables directly inside PostgreSQL:Bashdocker compose exec db psql -U alumni -d alumni -c "\dt"
-🌱 Factories and SeedingFactories (app/database/factories.py) generate realistic fake data using Faker. The seeder (app/database/seed.py) inserts them into the database to easily fill tables for testing.CommandMeaningdocker compose exec api python -m app.database.seedAdd 20 users, 10 announcements, and 15 job postings.docker compose exec api python -m app.database.seed --users 50 --announcements 5 --job-postings 30Choose the counts (0 skips a table).docker compose exec api python -m app.database.seed --freshEmpty all tables (including applications), reset IDs, then seed.docker compose exec api python -m app.database.seed --seed 7Same fake data on every run (use with --fresh).🌐 API & Web RoutesThe application features dual routing: traditional HTML pages for browsers, and JSON API routes for clients/Postman.Web Interface (HTML Pages)HTML forms only send GET/POST, so update and delete use POST sub-routes.Users: GET /users, POST /users, GET /users/{id}, GET /users/{id}/edit, POST /users/{id}/edit, POST /users/{id}/deleteAnnouncements: GET /announcements, POST /announcements, GET /announcements/{id}, GET /announcements/{id}/edit, POST /announcements/{id}/edit, POST /announcements/{id}/deleteJSON API (Swagger / Postman)All routes return JSON. 404 for missing IDs, 409 for duplicate emails/applications, 422 for invalid input.ResourceMethodsBase PathDescriptionUsersGET, POST, PUT, PATCH, DELETE/api/usersManage users (ApiUser tag).AnnouncementsGET, POST, PUT, PATCH, DELETE/api/announcementsManage announcements.Job PostingsGET, POST, PUT, PATCH, DELETE/api/job-postingsDirect route. posted_by_user_id in body.ApplicationsGET, POST, PATCH, DELETE/api/applicationsDirect route. Apply with user_id & job_posting_id.Nested API Routes (Relational):GET, POST, DELETE on /api/users/{user_id}/job-postings (Job postings belonging to a specific user)GET, POST, DELETE on /api/users/{user_id}/applications (Applications submitted by a user)GET, POST, PATCH on /api/job-postings/{posting_id}/applications (Applicants for a specific job posting)
+
+```
+
+*(Not: `your-username` kısmını kendi GitHub kullanıcı adınızla değiştirin.)*
+
+### 2. Configure Environment Variables
+
+Create your environment file from the template:
+
+```bash
+cp .env.example .env
+
+```
+
+Open `.env` and set your own values. **Never commit `.env` to Git.**
+
+| Variable | Used By | Description |
+| --- | --- | --- |
+| `POSTGRES_USER` | `db` | Database user created on first start. |
+| `POSTGRES_PASSWORD` | `db` | Password for the database user. |
+| `POSTGRES_DB` | `db` | Name of the database. |
+| `POSTGRES_PORT` | `db` | Host port mapped to PostgreSQL (default 5432). |
+| `API_PORT` | `api` | Host port mapped to the FastAPI app (default 8000). |
+| `DATABASE_URL` | `api` | Connection string: `postgresql://USER:PASSWORD@db:5432/DB_NAME`. |
+
+*Note: Database credentials only apply when the volume is created for the first time. To apply new values, run `docker compose down -v` (this deletes stored data).*
+
+### 3. Start the System
+
+```bash
+docker compose up -d
+
+```
+
+### 4. Run Migrations (Create Tables)
+
+```bash
+docker compose exec api alembic upgrade head
+
+```
+
+### 5. Access the App
+
+* **API Docs (Swagger UI):** [http://localhost:8000/api/swagger](http://localhost:8000/api/swagger) (Auto-updated with every endpoint)
+* **Health Check:** `GET /api/health`
+
+---
+
+## 🗄 Database Documentation & Migrations
+
+The single source of truth for the database design is **`ddd.md`** (Data Design Documentation). Every change to the database (new table, column, constraint, index, or relationship) must be documented in `ddd.md` in the same commit.
+
+The database schema is created by Alembic migrations (located in `migrations/versions/`).
+
+| Command | Meaning |
+| --- | --- |
+| `docker compose exec api alembic upgrade head` | Create/update the tables to the latest version. |
+| `docker compose exec api alembic current` | Show the current database version. |
+| `docker compose exec api alembic downgrade base` | Undo all migrations (drops the tables and their data). |
+
+To inspect tables directly inside PostgreSQL:
+
+```bash
+docker compose exec db psql -U alumni -d alumni -c "\dt"
+
+```
+
+---
+
+## 🌱 Factories and Seeding
+
+Factories (`app/database/factories.py`) generate realistic fake data using Faker. The seeder (`app/database/seed.py`) inserts them into the database to easily fill tables for testing.
+
+| Command | Meaning |
+| --- | --- |
+| `docker compose exec api python -m app.database.seed` | Add 20 users, 10 announcements, and 15 job postings. |
+| `docker compose exec api python -m app.database.seed --users 50 --announcements 5 --job-postings 30` | Choose the counts (0 skips a table). |
+| `docker compose exec api python -m app.database.seed --fresh` | Empty all tables (including applications), reset IDs, then seed. |
+| `docker compose exec api python -m app.database.seed --seed 7` | Same fake data on every run (use with `--fresh`). |
+
+---
+
+## 🌐 API & Web Routes
+
+The application features dual routing: traditional HTML pages for browsers, and JSON API routes for clients/Postman.
+
+### Web Interface (HTML Pages)
+
+HTML forms only send GET/POST, so update and delete use POST sub-routes.
+
+* **Users:** `GET /users`, `POST /users`, `GET /users/{id}`, `GET /users/{id}/edit`, `POST /users/{id}/edit`, `POST /users/{id}/delete`
+* **Announcements:** `GET /announcements`, `POST /announcements`, `GET /announcements/{id}`, `GET /announcements/{id}/edit`, `POST /announcements/{id}/edit`, `POST /announcements/{id}/delete`
+
+### JSON API (Swagger / Postman)
+
+*All routes return JSON.* `404` for missing IDs, `409` for duplicate emails/applications, `422` for invalid input.
+
+| Resource | Methods | Base Path | Description |
+| --- | --- | --- | --- |
+| **Users** | `GET, POST, PUT, PATCH, DELETE` | `/api/users` | Manage users (ApiUser tag). |
+| **Announcements** | `GET, POST, PUT, PATCH, DELETE` | `/api/announcements` | Manage announcements. |
+| **Job Postings** | `GET, POST, PUT, PATCH, DELETE` | `/api/job-postings` | Direct route. `posted_by_user_id` in body. |
+| **Applications** | `GET, POST, PATCH, DELETE` | `/api/applications` | Direct route. Apply with `user_id` & `job_posting_id`. |
+
+**Nested API Routes (Relational):**
+
+* `GET, POST, DELETE` on `/api/users/{user_id}/job-postings` (Job postings belonging to a specific user)
+* `GET, POST, DELETE` on `/api/users/{user_id}/applications` (Applications submitted by a user)
+* `GET, POST, PATCH` on `/api/job-postings/{posting_id}/applications` (Applicants for a specific job posting)
+
+```
+
+```
