@@ -1,6 +1,3 @@
-
-
-```markdown
 # 🎓 Alumni Tracking System
 
 A comprehensive backend system to track Management Information Systems (MIS) graduates. Built as a part of the Web Programming (YBSB3001) course, this project provides both a RESTful JSON API and a server-side rendered Web UI.
@@ -59,8 +56,9 @@ AlumniTrackingSystem/
 ├── .env.example                         # Template, committed to git
 ├── ddd.md                               # Data Design Documentation
 └── README.md
-
 ```
+
+</details>
 
 ---
 
@@ -69,12 +67,9 @@ AlumniTrackingSystem/
 ### 1. Clone the repository
 
 ```bash
-git clone [https://github.com/your-username/alumni.git](https://github.com/your-username/alumni.git)
+git clone https://github.com/FatihAlemdar-v1/alumni.git
 cd alumni
-
 ```
-
-*(Not: `your-username` kısmını kendi GitHub kullanıcı adınızla değiştirin.)*
 
 ### 2. Configure Environment Variables
 
@@ -82,7 +77,6 @@ Create your environment file from the template:
 
 ```bash
 cp .env.example .env
-
 ```
 
 Open `.env` and set your own values. **Never commit `.env` to Git.**
@@ -102,20 +96,18 @@ Open `.env` and set your own values. **Never commit `.env` to Git.**
 
 ```bash
 docker compose up -d
-
 ```
 
 ### 4. Run Migrations (Create Tables)
 
 ```bash
 docker compose exec api alembic upgrade head
-
 ```
 
 ### 5. Access the App
 
-* **API Docs (Swagger UI):** [http://localhost:8000/api/swagger](http://localhost:8000/api/swagger) (Auto-updated with every endpoint)
-* **Health Check:** `GET /api/health`
+- **API Docs (Swagger UI):** [http://localhost:8000/api/swagger](http://localhost:8000/api/swagger) (Auto-updated with every endpoint)
+- **Health Check:** `GET /api/health`
 
 ---
 
@@ -135,7 +127,6 @@ To inspect tables directly inside PostgreSQL:
 
 ```bash
 docker compose exec db psql -U alumni -d alumni -c "\dt"
-
 ```
 
 ---
@@ -153,7 +144,7 @@ Factories (`app/database/factories.py`) generate realistic fake data using Faker
 
 ---
 
-## 🌐 API & Web Routes
+## 🛣 API & Web Routes
 
 The application features dual routing: traditional HTML pages for browsers, and JSON API routes for clients/Postman.
 
@@ -161,8 +152,8 @@ The application features dual routing: traditional HTML pages for browsers, and 
 
 HTML forms only send GET/POST, so update and delete use POST sub-routes.
 
-* **Users:** `GET /users`, `POST /users`, `GET /users/{id}`, `GET /users/{id}/edit`, `POST /users/{id}/edit`, `POST /users/{id}/delete`
-* **Announcements:** `GET /announcements`, `POST /announcements`, `GET /announcements/{id}`, `GET /announcements/{id}/edit`, `POST /announcements/{id}/edit`, `POST /announcements/{id}/delete`
+- **Users:** `GET /users`, `POST /users`, `GET /users/{id}`, `GET /users/{id}/edit`, `POST /users/{id}/edit`, `POST /users/{id}/delete`
+- **Announcements:** `GET /announcements`, `POST /announcements`, `GET /announcements/{id}`, `GET /announcements/{id}/edit`, `POST /announcements/{id}/edit`, `POST /announcements/{id}/delete`
 
 ### JSON API (Swagger / Postman)
 
@@ -177,10 +168,6 @@ HTML forms only send GET/POST, so update and delete use POST sub-routes.
 
 **Nested API Routes (Relational):**
 
-* `GET, POST, DELETE` on `/api/users/{user_id}/job-postings` (Job postings belonging to a specific user)
-* `GET, POST, DELETE` on `/api/users/{user_id}/applications` (Applications submitted by a user)
-* `GET, POST, PATCH` on `/api/job-postings/{posting_id}/applications` (Applicants for a specific job posting)
-
-```
-
-```
+- `GET, POST, DELETE` on `/api/users/{user_id}/job-postings` (Job postings belonging to a specific user)
+- `GET, POST, DELETE` on `/api/users/{user_id}/applications` (Applications submitted by a user)
+- `GET, POST, PATCH` on `/api/job-postings/{posting_id}/applications` (Applicants for a specific job posting)
