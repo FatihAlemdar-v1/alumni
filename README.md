@@ -154,6 +154,8 @@ HTML forms only send GET/POST, so update and delete use POST sub-routes.
 
 - **Users:** `GET /users`, `POST /users`, `GET /users/{id}`, `GET /users/{id}/edit`, `POST /users/{id}/edit`, `POST /users/{id}/delete`
 - **Announcements:** `GET /announcements`, `POST /announcements`, `GET /announcements/{id}`, `GET /announcements/{id}/edit`, `POST /announcements/{id}/edit`, `POST /announcements/{id}/delete`
+- **Job Postings:** `GET /job-postings`, `POST /job-postings`, `GET /job-postings/{id}`, `GET /job-postings/{id}/edit`, `POST /job-postings/{id}/edit`, `POST /job-postings/{id}/delete`
+- **Applications:** `GET /applications`, `POST /applications`, `GET /applications/{id}`, `POST /applications/{id}/status`, `POST /applications/{id}/delete`
 
 ### JSON API (Swagger / Postman)
 

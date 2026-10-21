@@ -19,7 +19,7 @@ class ApiUserController:
     def create(self, data: UserCreate) -> dict:
         return user_model.create_user(data)
 
-    def list(self) -> list[dict]:
+    def list(self) -> list:
         return user_model.get_users()
 
     def get(self, user_id: int) -> dict:

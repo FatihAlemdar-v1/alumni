@@ -3,6 +3,8 @@ NAV_LINKS = [
     ("/about", "About"),
     ("/users", "Users"),
     ("/announcements", "Announcements"),
+    ("/job-postings", "Job Postings"),
+    ("/applications", "Applications"),
     ("/docs", "API Docs"),
 ]
 

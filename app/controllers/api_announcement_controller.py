@@ -19,7 +19,7 @@ class ApiAnnouncementController:
     def create(self, data: AnnouncementCreate) -> dict:
         return announcement_model.create_announcement(data)
 
-    def list(self) -> list[dict]:
+    def list(self) -> list:
         return announcement_model.get_announcements()
 
     def get(self, announcement_id: int) -> dict:

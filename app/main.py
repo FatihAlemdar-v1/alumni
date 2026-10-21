@@ -8,6 +8,8 @@ from app.controllers.api_announcement_controller import ApiAnnouncementControlle
 from app.controllers.api_application_controller import ApiApplicationController
 from app.controllers.api_job_posting_controller import ApiJobPostingController
 from app.controllers.api_user_controller import ApiUserController
+from app.controllers.application_controller import ApplicationController
+from app.controllers.job_posting_controller import JobPostingController
 from app.controllers.user_controller import UserController
 
 app = FastAPI(title="Alumni Tracking System")
@@ -26,11 +28,15 @@ api_announcement_controller = ApiAnnouncementController()
 app.include_router(announcement_controller.router)
 app.include_router(api_announcement_controller.router)
 
+job_posting_controller = JobPostingController()
 api_job_posting_controller = ApiJobPostingController()
+app.include_router(job_posting_controller.router)
 app.include_router(api_job_posting_controller.router)
 app.include_router(api_job_posting_controller.nested_router)
 
+application_controller = ApplicationController()
 api_application_controller = ApiApplicationController()
+app.include_router(application_controller.router)
 app.include_router(api_application_controller.router)
 app.include_router(api_application_controller.user_router)
 app.include_router(api_application_controller.posting_router)
