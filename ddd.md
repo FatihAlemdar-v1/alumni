@@ -2,7 +2,7 @@
 
 > Back to [README.md](README.md)
 
-This document describes the database design of the Alumni Tracking System. The tables below are created by the migration in [section 7](#7-migrations), and the app reads and writes them through the models in `app/models/` (see [section 8](#8-from-in-memory-models-to-tables)).
+This document describes the database design of the Alumni Tracking System. The tables below are created by the migrations in [section 7](#7-migrations), and the app reads and writes them through the models in `app/models/` (see [section 8](#8-from-in-memory-models-to-tables)).
 
 ## 1. Why a Database
 
@@ -27,10 +27,11 @@ Restarting the container wiped the Python process's memory, so all data was lost
 
 ## 3. Entities
 
-The system has two entities today, matching the two existing models:
+The system has three entities:
 
 - **User**: an MIS graduate (alumnus/alumna) tracked by the system.
-- **Announcement**: a news item or notice published to graduates (e.g. a graduation ceremony, a job posting, an event).
+- **Announcement**: a news item or notice published to graduates (e.g. a graduation ceremony, an event).
+- **Job Posting**: a job or internship offer shared with graduates, optionally posted by a registered user (e.g. an alumnus hiring at their company).
 
 ## 4. Tables
 
@@ -57,34 +58,37 @@ The system has two entities today, matching the two existing models:
 | `created_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When the announcement was published. |
 | `updated_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When it was last edited. |
 
+### 4.3 `job_postings`
+
+| Column | Type | Constraints | Description |
+| --- | --- | --- | --- |
+| `id` | `SERIAL` | `PRIMARY KEY` | Auto-incremented identifier. |
+| `title` | `VARCHAR(200)` | `NOT NULL` | Position title (e.g. "Junior Data Analyst"). |
+| `company` | `VARCHAR(150)` | `NOT NULL` | Hiring company. |
+| `location` | `VARCHAR(150)` | `NOT NULL` | City, or "Remote". |
+| `employment_type` | `VARCHAR(20)` | `NOT NULL`, `CHECK (employment_type IN ('full_time', 'part_time', 'internship', 'contract'))` | Kind of position. A fixed list so filtering by type is reliable. |
+| `description` | `TEXT` | `NOT NULL` | Responsibilities and requirements, no length limit. |
+| `application_url` | `VARCHAR(500)` | nullable | Where to apply. Optional: some postings only give a contact in the description. |
+| `deadline` | `DATE` | nullable | Last day to apply. Optional: some postings stay open until filled. |
+| `is_active` | `BOOLEAN` | `NOT NULL`, `DEFAULT TRUE` | `FALSE` hides a filled or expired posting without deleting it. |
+| `posted_by_user_id` | `INTEGER` | nullable, `REFERENCES users(id) ON DELETE SET NULL` | The user who shared the posting. `NULL` when the department posts it, or when the user is later deleted. |
+| `created_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When the posting was created. |
+| `updated_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When it was last edited. |
+
+| Index | Columns | Reason |
+| --- | --- | --- |
+| `ix_job_postings_posted_by_user_id` | `posted_by_user_id` | PostgreSQL does not index foreign keys automatically. This keeps "postings by this user" lookups and user deletes fast. |
+
 ## 5. Relationships
 
-```mermaid
-erDiagram
-    USERS {
-        int id PK
-        varchar name
-        varchar email UK
-        int graduation_year
-        varchar department
-        timestamp created_at
-        timestamp updated_at
-    }
-    ANNOUNCEMENTS {
-        int id PK
-        varchar title
-        text content
-        varchar author
-        timestamp created_at
-        timestamp updated_at
-    }
-```
+### `users` (1) &mdash; `job_postings` (N)
 
-The two tables are **independent** for now: there is no foreign key between them. Announcements are published by the department, not by graduates, so `author` stays a free-text field rather than a reference to `users`.
+One user can post multiple job postings. A job posting belongs to at most one user (it can also be posted by the department, in which case `posted_by_user_id` is `NULL`).
 
-**Open decision:** if announcements later need to be posted by registered accounts (e.g. admins), `author` should become `author_id INTEGER REFERENCES users(id)`, giving a one-to-many relationship (one user writes many announcements).
+- **Foreign key:** `job_postings.posted_by_user_id -> users.id`.
+- **On delete:** `SET NULL`. If a user is deleted, their postings stay in the system with `posted_by_user_id = NULL`. The department keeps the posting and applicants can still find it.
 
-## 6. SQL Equivalent
+## 6. DDL (PostgreSQL Schema)
 
 ```sql
 CREATE TABLE users (
@@ -105,67 +109,39 @@ CREATE TABLE announcements (
     created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE job_postings (
+    id                 SERIAL PRIMARY KEY,
+    title              VARCHAR(200) NOT NULL,
+    company            VARCHAR(150) NOT NULL,
+    location           VARCHAR(150) NOT NULL,
+    employment_type    VARCHAR(20)  NOT NULL CHECK (employment_type IN ('full_time', 'part_time', 'internship', 'contract')),
+    description        TEXT         NOT NULL,
+    application_url    VARCHAR(500),
+    deadline           DATE,
+    is_active          BOOLEAN      NOT NULL DEFAULT TRUE,
+    posted_by_user_id  INTEGER      REFERENCES users(id) ON DELETE SET NULL,
+    created_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX ix_job_postings_posted_by_user_id ON job_postings (posted_by_user_id);
 ```
 
-The SQL above is shown for reading. It is not run by hand: the migration below produces the same tables.
+The SQL above is shown for reading. It is not run by hand: migrations produce the same tables.
 
 ## 7. Migrations
 
-Migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). Each migration is a Python file in `migrations/versions/` with an `upgrade()` (apply) and a `downgrade()` (undo) function. Alembic remembers the current version in the `alembic_version` table.
+Migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). Each migration is a Python file in `migrations/versions/` with an `upgrade()` (apply) and a `downgrade()` (undo) function.
 
 | Revision | File | What it does |
 | --- | --- | --- |
-| `0001` | `migrations/versions/0001_create_users_and_announcements.py` | Creates `users` and `announcements` exactly as defined in section 4. Downgrade drops both tables. |
+| `0001` | `migrations/versions/0001_create_users_and_announcements.py` | Creates `users` and `announcements`. |
+| `0002` | `migrations/versions/0002_create_job_postings.py` | Creates `job_postings` table and foreign key to `users`. |
 
-| Command (run in the project folder) | Meaning |
-| --- | --- |
-| `docker compose exec api alembic upgrade head` | Apply all migrations (create the tables). |
-| `docker compose exec api alembic current` | Show which revision the database is at. |
-| `docker compose exec api alembic downgrade base` | Undo all migrations (drops the tables and their data). |
-| `docker compose exec api alembic revision -m "message"` | Create a new empty migration file for the next schema change. |
+## 8. Naming Conventions
 
-**How the constraints are enforced:** the `UNIQUE` on `users.email`, the `CHECK` on `users.graduation_year` and the `NOT NULL` columns are enforced by PostgreSQL itself. They were tested by inserting invalid rows, which the database rejected.
-
-**Note on `updated_at`:** it only has a default at insert time. PostgreSQL does not update it automatically on `UPDATE`, so the application sets it in every update query (see section 8).
-
-### 7.1 Factories and Seeding
-
-Test data is generated by factories and inserted by a seeder. This does not change the schema.
-
-| File | Role |
-| --- | --- |
-| `app/database/factories.py` | `UserFactory` and `AnnouncementFactory` build fake rows with [Faker](https://faker.readthedocs.io/). They respect the table rules: unique emails, `graduation_year` between 2005 and 2025, title within 200 characters. |
-| `app/database/seed.py` | Seeder: inserts the factory rows into `users` and `announcements`. |
-| `app/database/connection.py` | Creates the database connection from `DATABASE_URL`. |
-
-| Command | Meaning |
-| --- | --- |
-| `docker compose exec api python -m app.database.seed` | Add 20 users and 10 announcements. |
-| `docker compose exec api python -m app.database.seed --users 50 --announcements 5` | Choose the counts. |
-| `docker compose exec api python -m app.database.seed --fresh` | Empty both tables and reset ids to 1 first, then seed. |
-| `docker compose exec api python -m app.database.seed --seed 7` | Fixed random seed: the same data every run (use with `--fresh`). |
-
-Without `--fresh`, each run adds more rows on top of the existing ones. The seeded data is for development only.
-
-## 8. From In-Memory Models to Tables
-
-The app is now connected to the database. `app/models/user.py` and `app/models/announcement.py` run SQL (through SQLAlchemy and the connection in `app/database/connection.py`) instead of changing Python lists.
-
-| Before (in memory) | Now (database) | Change |
-| --- | --- | --- |
-| `users: list[dict]` | `users` table | Rows persist across restarts. |
-| `id = len(users) + 1` | `SERIAL` | The database assigns ids. The old approach could repeat an id after a delete; `SERIAL` never reuses one. Ids can have gaps, for example when an insert is rejected by a constraint. |
-| `email: str` (no rule) | `UNIQUE` | A duplicate email is rejected and the API answers `409 Conflict`. |
-| `graduation_year: int` (no rule) | `CHECK` between 1950 and 2100 | Checked twice: by the Pydantic models (answer `422`) and by the database. |
-| `announcements: list[dict]` | `announcements` table | Rows persist across restarts. |
-| `created_at` as a formatted string | `TIMESTAMP` | Stored as a real date/time. The API still returns it formatted as `YYYY-MM-DD HH:MM`. |
-| No `updated_at` | `updated_at` column | The model sets it to `CURRENT_TIMESTAMP` on every update, which resolves the limitation noted in section 7. |
-| Missing id in a list | `404 Not Found` | Unchanged: a missing id still answers `404`. |
-
-The API contracts (request/response fields in `/api/users` and `/api/announcements`) stay the same, so controllers and views did not need to change. `created_at` and `updated_at` of users are stored but not returned by the API.
-
-## 9. Naming Conventions
-
-- Table names are plural and lowercase: `users`, `announcements`.
-- Column names use `snake_case`: `graduation_year`, `created_at`.
+- Table names are plural and lowercase: `users`, `announcements`, `job_postings`.
+- Column names use `snake_case`: `graduation_year`, `created_at`, `posted_by_user_id`.
 - Every table has an `id` primary key plus `created_at` and `updated_at` columns.
+- Foreign keys are named `<role>_<table>_id`: `posted_by_user_id`.
