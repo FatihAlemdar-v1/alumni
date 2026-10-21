@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.controllers.announcement_controller import AnnouncementController
 from app.controllers.api_announcement_controller import ApiAnnouncementController
+from app.controllers.api_job_posting_controller import ApiJobPostingController
 from app.controllers.api_user_controller import ApiUserController
 from app.controllers.user_controller import UserController
 
@@ -24,6 +25,10 @@ api_announcement_controller = ApiAnnouncementController()
 app.include_router(announcement_controller.router)
 app.include_router(api_announcement_controller.router)
 
+api_job_posting_controller = ApiJobPostingController()
+app.include_router(api_job_posting_controller.router)
+app.include_router(api_job_posting_controller.nested_router)
+
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
@@ -42,7 +47,7 @@ def read_hello():
 
 @app.get("/hello/{name}")
 def read_hello_name(name: str):
-    return f"Hello {name}"
+    return f"Hello, {name.capitalize()}!"
 
 
 @app.get("/sum/{number1}/{number2}")
