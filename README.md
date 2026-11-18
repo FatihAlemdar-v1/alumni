@@ -22,6 +22,15 @@ This project is built incrementally week by week. It follows a clean architectur
 
 ---
 
+## 📖 Project Design and Brand Guides
+
+Explore the documents that define Alumni Connect's brand identity and page-by-page design system:
+
+- [Brand vision and values](./brand.md)
+- [UI/UX design architecture](./DESIGN.MD)
+
+---
+
 ## 🏗 Project Architecture (MVC)
 
 The project follows the Model–View–Controller (MVC) pattern, split into dedicated files and folders under the `app/` directory:
@@ -173,3 +182,18 @@ HTML forms only send GET/POST, so update and delete use POST sub-routes.
 - `GET, POST, DELETE` on `/api/users/{user_id}/job-postings` (Job postings belonging to a specific user)
 - `GET, POST, DELETE` on `/api/users/{user_id}/applications` (Applications submitted by a user)
 - `GET, POST, PATCH` on `/api/job-postings/{posting_id}/applications` (Applicants for a specific job posting)
+
+---
+
+## 🛡️ Güvenlik ve Loglama (Guardians & Middleware)
+
+Sistemin izlenebilirliğini ve hata yönetimini artırmak için özel ara katmanlar (middlewares) yazılmıştır:
+
+* **System Logger:** Gelen tüm HTTP isteklerinin `method`, `route`, `status_code` ve `duration` bilgilerini terminale ve `logs/error.log` dosyasına yazar.
+* **Guardians (404 & 5xx):** Bulunmayan rotalar ve sunucu hataları özel hata yakalayıcılarla yönetilir. API isteklerine standart JSON hata kodları, web isteklerine mezun temalı 404 sayfası döndürülür.
+
+Job posting doğrulama kuralları ve veritabanı değişiklikleri `ddd.md` içinde belgelenmiştir. Uygulamak için migration'ları çalıştırın:
+
+```bash
+docker compose exec api alembic upgrade head
+```
