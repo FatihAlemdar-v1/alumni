@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Literal
 
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import TIMESTAMP, CheckConstraint, ForeignKey, String, Text, func, select, text
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
@@ -28,11 +28,11 @@ class JobPosting(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(200))
+    title: Mapped[str] = mapped_column(String(120))
     company: Mapped[str] = mapped_column(String(150))
-    location: Mapped[str] = mapped_column(String(150))
+    location: Mapped[str | None] = mapped_column(String(150), nullable=True)
     employment_type: Mapped[str] = mapped_column(String(20))
-    description: Mapped[str] = mapped_column(Text())
+    description: Mapped[str | None] = mapped_column(Text(), nullable=True)
     application_url: Mapped[str | None] = mapped_column(String(500))
     deadline: Mapped[date | None]
     is_active: Mapped[bool] = mapped_column(server_default=text("TRUE"))
@@ -58,11 +58,11 @@ class JobPosting(Base):
 class JobPostingBase(BaseModel):
     """Fields of a posting that do not say who owns it (used as-is by the nested routes)."""
 
-    title: str = Field(max_length=200)
+    title: str = Field(max_length=120)
     company: str = Field(max_length=150)
-    location: str = Field(max_length=150)
+    location: str | None = Field(default=None, max_length=150)
     employment_type: EmploymentType
-    description: str
+    description: str | None = None
     application_url: str | None = Field(default=None, max_length=500)
     deadline: date | None = None
     is_active: bool = True
@@ -75,7 +75,7 @@ class JobPostingCreate(JobPostingBase):
 
 
 class JobPostingUpdate(BaseModel):
-    title: str | None = Field(default=None, max_length=200)
+    title: str | None = Field(default=None, max_length=120)
     company: str | None = Field(default=None, max_length=150)
     location: str | None = Field(default=None, max_length=150)
     employment_type: EmploymentType | None = None
@@ -84,6 +84,14 @@ class JobPostingUpdate(BaseModel):
     deadline: date | None = None
     is_active: bool | None = None
     posted_by_user_id: int | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_fields(self) -> "JobPostingUpdate":
+        if "title" in self.model_fields_set and self.title is None:
+            raise ValueError("title cannot be null")
+        if "company" in self.model_fields_set and self.company is None:
+            raise ValueError("company cannot be null")
+        return self
 
 
 def _to_dict(posting: JobPosting) -> dict:

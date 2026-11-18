@@ -1,7 +1,9 @@
+import logging
+import time
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.controllers.announcement_controller import AnnouncementController
 from app.controllers.api_announcement_controller import ApiAnnouncementController
@@ -17,6 +19,71 @@ app = FastAPI(title="Alumni Tracking System")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 INDEX_HTML = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
 ABOUT_HTML = (TEMPLATES_DIR / "about.html").read_text(encoding="utf-8")
+NOT_FOUND_HTML = (TEMPLATES_DIR / "404.html").read_text(encoding="utf-8")
+
+LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+logger = logging.getLogger("alumni_logger")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+if not logger.handlers:
+    formatter = logging.Formatter("%(message)s")
+    file_handler = logging.FileHandler(LOGS_DIR / "error.log", encoding="utf-8")
+    stream_handler = logging.StreamHandler()
+    file_handler.setFormatter(formatter)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+
+@app.middleware("http")
+async def system_logger_middleware(request: Request, call_next):
+    start_time = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        process_time_ms = round((time.perf_counter() - start_time) * 1000)
+        current_time = time.strftime("%H:%M:%S")
+        logger.info(
+            f"{current_time} {request.method} {request.url.path} "
+            f"{status.HTTP_500_INTERNAL_SERVER_ERROR} {process_time_ms}ms"
+        )
+        raise
+
+    process_time_ms = round((time.perf_counter() - start_time) * 1000)
+    current_time = time.strftime("%H:%M:%S")
+    logger.info(
+        f"{current_time} {request.method} {request.url.path} "
+        f"{response.status_code} {process_time_ms}ms"
+    )
+    return response
+
+
+@app.exception_handler(404)
+async def not_found_guardian(request: Request, exc):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "error_code": "RESOURCE_MISSING",
+                "reason": f"'{request.url.path}' yolunda aradığınız veri mezun sisteminde bulunamadı.",
+            },
+        )
+    return HTMLResponse(content=NOT_FOUND_HTML, status_code=status.HTTP_404_NOT_FOUND)
+
+
+@app.exception_handler(500)
+async def internal_error_guardian(request: Request, exc: Exception):
+    logger.error(f"CRITICAL SYSTEM ERROR at {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error_code": "SYSTEM_FAULT",
+            "reason": "Sunucu tarafında beklenmeyen bir hata oluştu. Mühendislerimiz bilgilendirildi.",
+        },
+    )
 
 user_controller = UserController()
 api_user_controller = ApiUserController()

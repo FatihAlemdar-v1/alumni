@@ -4,7 +4,7 @@
 
 This document describes the database design of the Alumni Tracking System. The tables below are created by the migrations in [section 7](#7-migrations), and the app reads and writes them through the models in `app/models/` (see [section 8](#8-from-in-memory-models-to-tables)).
 
-> **Status:** all four tables (`users`, `announcements`, `job_postings`, `applications`) exist in the database: migrations `0001`, `0002` and `0003` have been applied (`alembic current` shows `0003 (head)`). The app uses `users` and `announcements` for its pages and API, and has JSON routes for `job_postings` and `applications` (sections [8.2](#82-routes-direct-and-nested) and [8.3](#83-applications-models-and-routes)). On a fresh database, run `alembic upgrade head` first.
+> **Status:** all four tables (`users`, `announcements`, `job_postings`, `applications`) exist in the database, and migrations `0001`, `0002` and `0003` have been applied (`alembic current` previously showed `0003 (head)`). Migration `0004` now applies the JobPosting validation rules below and must be run with `alembic upgrade head` before the database matches the current model. The app uses `users` and `announcements` for its pages and API, and has JSON routes for `job_postings` and `applications` (sections [8.2](#82-routes-direct-and-nested) and [8.3](#83-applications-models-and-routes)). On a fresh database, run `alembic upgrade head` first.
 
 ## 1. Why a Database
 
@@ -66,11 +66,11 @@ The system has four entities:
 | Column | Type | Constraints | Description |
 | --- | --- | --- | --- |
 | `id` | `SERIAL` | `PRIMARY KEY` | Auto-incremented identifier. |
-| `title` | `VARCHAR(200)` | `NOT NULL` | Position title (e.g. "Junior Data Analyst"). |
+| `title` | `VARCHAR(120)` | `NOT NULL` | Position title (e.g. "Junior Data Analyst"), at most 120 characters. |
 | `company` | `VARCHAR(150)` | `NOT NULL` | Hiring company. |
-| `location` | `VARCHAR(150)` | `NOT NULL` | City, or "Remote". |
+| `location` | `VARCHAR(150)` | nullable | Optional city or "Remote". |
 | `employment_type` | `VARCHAR(20)` | `NOT NULL`, `CHECK (employment_type IN ('full_time', 'part_time', 'internship', 'contract'))` | Kind of position. A fixed list so filtering by type is reliable. |
-| `description` | `TEXT` | `NOT NULL` | Responsibilities and requirements, no length limit. |
+| `description` | `TEXT` | nullable | Optional responsibilities and requirements, no length limit. |
 | `application_url` | `VARCHAR(500)` | nullable | Where to apply. Optional: some postings only give a contact in the description. |
 | `deadline` | `DATE` | nullable | Last day to apply. Optional: some postings stay open until filled. |
 | `is_active` | `BOOLEAN` | `NOT NULL`, `DEFAULT TRUE` | `FALSE` hides a filled or expired posting without deleting it. |
@@ -81,6 +81,17 @@ The system has four entities:
 | Index | Columns | Reason |
 | --- | --- | --- |
 | `ix_job_postings_posted_by_user_id` | `posted_by_user_id` | PostgreSQL does not index foreign keys automatically. This keeps "postings by this user" lookups and user deletes fast. |
+
+## 📋 JobPosting (İş İlanları) Validasyon Kuralları
+
+The following rules are enforced by the Pydantic schemas and the database schema. The existing API/DB field name `location` represents the optional city.
+
+| Alan Adı | Zorunluluk | Veri Tipi / Kural | Açıklama |
+| :--- | :---: | :--- | :--- |
+| `title` | **Evet** | String (Max: 120) | İlan başlığı en fazla 120 karakter olabilir. |
+| `company` | **Evet** | String | İlanı veren şirket adı mutlaka girilmelidir. |
+| `city` (`location`) | Hayır | String | Çalışma lokasyonu (Opsiyonel). |
+| `description` | Hayır | Text | İlanın detaylı açıklaması (Opsiyonel). |
 
 ### 4.4 `applications`
 
@@ -231,8 +242,9 @@ Migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). Each mig
 | `0001` | `migrations/versions/0001_create_users_and_announcements.py` | Creates `users` and `announcements` exactly as defined in section 4. Downgrade drops both tables. | Applied |
 | `0002` | `migrations/versions/0002_create_job_postings.py` | Creates `job_postings` (section 4.3) with its foreign key to `users` and its index. Downgrade drops the table. Depends on `0001`, because the foreign key needs `users` to exist. | Applied |
 | `0003` | `migrations/versions/0003_create_applications.py` | Creates `applications` (section 4.4) with its two foreign keys, the unique pair and the index. Downgrade drops the table. Depends on `0002`, because it references both `users` and `job_postings`. | Applied |
+| `0004` | `migrations/versions/0004_job_posting_validation_rules.py` | Limits posting titles to 120 characters and makes location and description optional. Depends on `0003`. | Pending |
 
-`alembic upgrade head` applies the migrations that are missing, in order. It was run on the existing database (which already held 20 users and 10 announcements from the seeder): `0002` and `0003` were applied, the existing rows were untouched and `alembic current` now shows `0003 (head)`. `alembic check` reports "No new upgrade operations detected", so the ORM models match the real tables.
+`alembic upgrade head` applies the migrations that are missing, in order. When migrations `0002` and `0003` were applied to the existing database, its rows were untouched and `alembic current` showed `0003 (head)`. Run the new `0004` migration before using the updated JobPosting model against that database.
 
 | Command (run in the project folder) | Meaning |
 | --- | --- |

@@ -57,7 +57,7 @@ def render_job_posting_list(postings: list[dict], users: list[dict] | None = Non
           <td><a href="/job-postings/{p['id']}">{p['id']}</a></td>
           <td><strong>{p['title']}</strong></td>
           <td>{p['company']}</td>
-          <td>{p['location']}</td>
+          <td>{p['location'] or '-'}</td>
           <td>{p['employment_type']}</td>
           <td><span class="badge {'badge-active' if p['is_active'] else 'badge-closed'}">{'Active' if p['is_active'] else 'Closed'}</span></td>
           <td>{p['deadline'] or '-'}</td>
@@ -97,13 +97,13 @@ def render_job_posting_list(postings: list[dict], users: list[dict] | None = Non
       <h2>Create New Job Posting</h2>
       <form action="/job-postings" method="POST">
         <label>Title</label>
-        <input name="title" required placeholder="e.g. Junior Data Analyst" />
+        <input name="title" maxlength="120" required placeholder="e.g. Junior Data Analyst" />
 
         <label>Company</label>
         <input name="company" required placeholder="e.g. Acme Corp" />
 
         <label>Location</label>
-        <input name="location" required placeholder="e.g. Istanbul or Remote" />
+        <input name="location" placeholder="e.g. Istanbul or Remote (optional)" />
 
         <label>Employment Type</label>
         <select name="employment_type" required>
@@ -114,7 +114,7 @@ def render_job_posting_list(postings: list[dict], users: list[dict] | None = Non
         </select>
 
         <label>Description</label>
-        <textarea name="description" required placeholder="Describe responsibilities and requirements..."></textarea>
+        <textarea name="description" placeholder="Describe responsibilities and requirements..."></textarea>
 
         <label>Application URL (optional)</label>
         <input name="application_url" type="url" placeholder="https://..." />
@@ -152,14 +152,14 @@ def render_job_posting_detail(posting: dict, applications: list[dict] | None = N
       <h1>{posting['title']}</h1>
       <dl>
         <dt>Company</dt><dd>{posting['company']}</dd>
-        <dt>Location</dt><dd>{posting['location']}</dd>
+        <dt>Location</dt><dd>{posting['location'] or 'Not specified'}</dd>
         <dt>Employment Type</dt><dd>{posting['employment_type']}</dd>
         <dt>Status</dt><dd><span class="badge {'badge-active' if posting['is_active'] else 'badge-closed'}">{'Active' if posting['is_active'] else 'Closed'}</span></dd>
         <dt>Deadline</dt><dd>{posting['deadline'] or 'No deadline'}</dd>
         <dt>Application URL</dt><dd>{f'<a href="{posting["application_url"]}" target="_blank">{posting["application_url"]}</a>' if posting.get('application_url') else 'Direct application below'}</dd>
         <dt>Posted By User ID</dt><dd>{posting['posted_by_user_id'] or 'Department'}</dd>
         <dt>Created At</dt><dd>{posting.get('created_at', '-')}</dd>
-        <dt>Description</dt><dd style="white-space: pre-wrap;">{posting['description']}</dd>
+        <dt>Description</dt><dd style="white-space: pre-wrap;">{posting['description'] or 'No description provided.'}</dd>
       </dl>
 
       <form class="actions">
@@ -208,13 +208,13 @@ def render_job_posting_edit_form(posting: dict) -> str:
       <h1>Edit Job Posting #{posting['id']}</h1>
       <form action="/job-postings/{posting['id']}/edit" method="POST">
         <label>Title</label>
-        <input name="title" value="{posting['title']}" required />
+        <input name="title" value="{posting['title']}" maxlength="120" required />
 
         <label>Company</label>
         <input name="company" value="{posting['company']}" required />
 
         <label>Location</label>
-        <input name="location" value="{posting['location']}" required />
+        <input name="location" value="{posting['location'] or ''}" />
 
         <label>Employment Type</label>
         <select name="employment_type" required>
@@ -222,7 +222,7 @@ def render_job_posting_edit_form(posting: dict) -> str:
         </select>
 
         <label>Description</label>
-        <textarea name="description" required>{posting['description']}</textarea>
+        <textarea name="description">{posting['description'] or ''}</textarea>
 
         <label>Application URL</label>
         <input name="application_url" type="url" value="{posting.get('application_url') or ''}" />
