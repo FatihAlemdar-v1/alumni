@@ -4,7 +4,7 @@
 
 This document describes the database design of the Alumni Tracking System. The tables below are created by the migrations in [section 7](#7-migrations), and the app reads and writes them through the models in `app/models/` (see [section 8](#8-from-in-memory-models-to-tables)).
 
-> **Status:** all four tables (`users`, `announcements`, `job_postings`, `applications`) exist in the database, and migrations `0001`, `0002` and `0003` have been applied (`alembic current` previously showed `0003 (head)`). Migration `0004` now applies the JobPosting validation rules below and must be run with `alembic upgrade head` before the database matches the current model. The app uses `users` and `announcements` for its pages and API, and has JSON routes for `job_postings` and `applications` (sections [8.2](#82-routes-direct-and-nested) and [8.3](#83-applications-models-and-routes)). On a fresh database, run `alembic upgrade head` first.
+> **Status:** revisions `0001`–`0004` create the four core tables and apply job-posting validation. Revision `0005` adds password hashes and roles to `users`; run `alembic upgrade head` before using authentication. Existing accounts keep their data and receive the default `user` role, but cannot log in until assigned a password.
 
 ## 1. Why a Database
 
@@ -47,6 +47,8 @@ The system has four entities:
 | `email` | `VARCHAR(255)` | `NOT NULL`, `UNIQUE` | Contact email. Unique so the same person cannot be registered twice. |
 | `graduation_year` | `INTEGER` | `NOT NULL`, `CHECK (graduation_year BETWEEN 1950 AND 2100)` | Year of graduation. |
 | `department` | `VARCHAR(100)` | `NOT NULL` | Department graduated from. |
+| `password_hash` | `VARCHAR(255)` | nullable | Bcrypt password hash. Nullable only for existing pre-auth accounts, which cannot authenticate until assigned a password. |
+| `role` | `VARCHAR(20)` | `NOT NULL`, `DEFAULT 'user'`, `CHECK (role IN ('admin', 'user'))` | Access role. Public registration always creates a `user`; administrators are assigned out of band. |
 | `created_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When the record was created. |
 | `updated_at` | `TIMESTAMP` | `NOT NULL`, `DEFAULT CURRENT_TIMESTAMP` | When the record was last changed. |
 
@@ -243,8 +245,9 @@ Migrations are managed with [Alembic](https://alembic.sqlalchemy.org/). Each mig
 | `0002` | `migrations/versions/0002_create_job_postings.py` | Creates `job_postings` (section 4.3) with its foreign key to `users` and its index. Downgrade drops the table. Depends on `0001`, because the foreign key needs `users` to exist. | Applied |
 | `0003` | `migrations/versions/0003_create_applications.py` | Creates `applications` (section 4.4) with its two foreign keys, the unique pair and the index. Downgrade drops the table. Depends on `0002`, because it references both `users` and `job_postings`. | Applied |
 | `0004` | `migrations/versions/0004_job_posting_validation_rules.py` | Limits posting titles to 120 characters and makes location and description optional. Depends on `0003`. | Pending |
+| `0005` | `migrations/versions/0005_authentication.py` | Adds nullable `password_hash`, default `user` role, and role check constraint. Depends on `0004`. | Pending |
 
-`alembic upgrade head` applies the migrations that are missing, in order. When migrations `0002` and `0003` were applied to the existing database, its rows were untouched and `alembic current` showed `0003 (head)`. Run the new `0004` migration before using the updated JobPosting model against that database.
+`alembic upgrade head` applies the migrations that are missing, in order. Run `0004` and `0005` before using the current JobPosting model or authentication routes against an existing database.
 
 | Command (run in the project folder) | Meaning |
 | --- | --- |

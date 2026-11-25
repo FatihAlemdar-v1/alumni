@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
 
@@ -19,10 +19,10 @@ class UserController:
         self.router.add_api_route("/{user_id}/edit", self.update, methods=["POST"])
         self.router.add_api_route("/{user_id}/delete", self.delete, methods=["POST"])
 
-    def list(self) -> HTMLResponse:
+    def list(self, request: Request) -> HTMLResponse:
         """GET /users -> listing (R): renders the users table."""
         users = user_model.get_users()
-        return HTMLResponse(render_user_list(users))
+        return HTMLResponse(render_user_list(users, request.state.user))
 
     def create(
         self,
@@ -41,15 +41,15 @@ class UserController:
         user_model.create_user(data)
         return RedirectResponse(url="/users", status_code=303)
 
-    def get(self, user_id: int) -> HTMLResponse:
+    def get(self, request: Request, user_id: int) -> HTMLResponse:
         """GET /users/{id} -> detail page (R)."""
         user = user_model.get_user(user_id)
-        return HTMLResponse(render_user_detail(user))
+        return HTMLResponse(render_user_detail(user, request.state.user))
 
-    def edit_form(self, user_id: int) -> HTMLResponse:
+    def edit_form(self, request: Request, user_id: int) -> HTMLResponse:
         """GET /users/{id}/edit -> pre-filled edit form."""
         user = user_model.get_user(user_id)
-        return HTMLResponse(render_user_edit_form(user))
+        return HTMLResponse(render_user_edit_form(user, request.state.user))
 
     def update(
         self,

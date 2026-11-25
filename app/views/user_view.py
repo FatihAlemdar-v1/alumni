@@ -26,7 +26,7 @@ PAGE_STYLE = """
 """
 
 
-def _page(title: str, body: str) -> str:
+def _page(title: str, body: str, user: dict | None = None) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +37,7 @@ def _page(title: str, body: str) -> str:
   {NAV_STYLE}
 </head>
 <body>
-  {render_nav("/users")}
+  {render_nav("/users", user)}
   <div class="wrap">
     {body}
   </div>
@@ -45,7 +45,7 @@ def _page(title: str, body: str) -> str:
 </html>"""
 
 
-def render_user_list(users: list[dict]) -> str:
+def render_user_list(users: list[dict], user: dict | None = None) -> str:
     rows = "".join(
         f"<tr><td>{u['id']}</td><td>{u['name']}</td><td>{u['email']}</td>"
         f"<td>{u['graduation_year']}</td><td>{u['department']}</td>"
@@ -70,10 +70,10 @@ def render_user_list(users: list[dict]) -> str:
     <h1>Add User</h1>
     {_user_form(action="/users")}
     """
-    return _page("Users", body)
+    return _page("Users", body, user)
 
 
-def render_user_detail(user: dict) -> str:
+def render_user_detail(user: dict, current_user: dict | None = None) -> str:
     body = f"""
     <h1>User #{user['id']}</h1>
     <dl>
@@ -85,16 +85,16 @@ def render_user_detail(user: dict) -> str:
     <a href="/users/{user['id']}/edit">Edit</a> |
     <a href="/users">Back to list</a>
     """
-    return _page(f"User #{user['id']}", body)
+    return _page(f"User #{user['id']}", body, current_user)
 
 
-def render_user_edit_form(user: dict) -> str:
+def render_user_edit_form(user: dict, current_user: dict | None = None) -> str:
     body = f"""
     <h1>Edit User #{user['id']}</h1>
     {_user_form(action=f"/users/{user['id']}/edit", user=user)}
     <p><a href="/users">Back to list</a></p>
     """
-    return _page(f"Edit User #{user['id']}", body)
+    return _page(f"Edit User #{user['id']}", body, current_user)
 
 
 def _user_form(action: str, user: dict | None = None) -> str:

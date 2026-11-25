@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -10,11 +11,21 @@ from app.controllers.api_announcement_controller import ApiAnnouncementControlle
 from app.controllers.api_application_controller import ApiApplicationController
 from app.controllers.api_job_posting_controller import ApiJobPostingController
 from app.controllers.api_user_controller import ApiUserController
-from app.controllers.application_controller import ApplicationController
-from app.controllers.job_posting_controller import JobPostingController
+from app.controllers.account_controller import AccountController
+from app.controllers.alumni_controller import AlumniController
+from app.controllers.admin_controller import AdminController
+from app.controllers.auth_controller import AuthController
+from app.controllers.public_job_posting_controller import PublicJobPostingController
 from app.controllers.user_controller import UserController
+from app.middleware.auth import auth_middleware
+from app.views.layout import render_nav_links
 
 app = FastAPI(title="Alumni Tracking System")
+
+
+@app.middleware("http")
+async def authentication_middleware(request: Request, call_next):
+    return await auth_middleware(request, call_next)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 INDEX_HTML = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
@@ -90,33 +101,68 @@ api_user_controller = ApiUserController()
 app.include_router(user_controller.router)
 app.include_router(api_user_controller.router)
 
+auth_controller = AuthController()
+account_controller = AccountController()
+admin_controller = AdminController()
+app.include_router(auth_controller.router)
+app.include_router(account_controller.router)
+app.include_router(admin_controller.router)
+app.include_router(AlumniController().router)
+
 announcement_controller = AnnouncementController()
 api_announcement_controller = ApiAnnouncementController()
 app.include_router(announcement_controller.router)
 app.include_router(api_announcement_controller.router)
 
-job_posting_controller = JobPostingController()
+public_job_posting_controller = PublicJobPostingController()
+app.include_router(public_job_posting_controller.router)
+
 api_job_posting_controller = ApiJobPostingController()
-app.include_router(job_posting_controller.router)
 app.include_router(api_job_posting_controller.router)
 app.include_router(api_job_posting_controller.nested_router)
 
-application_controller = ApplicationController()
 api_application_controller = ApiApplicationController()
-app.include_router(application_controller.router)
 app.include_router(api_application_controller.router)
 app.include_router(api_application_controller.user_router)
 app.include_router(api_application_controller.posting_router)
 
 
 @app.get("/", response_class=HTMLResponse)
-def read_root():
-    return INDEX_HTML
+def read_root(request: Request):
+    user = request.state.user
+    if user:
+        auth_links = """
+        <a href="/profile">Profilim</a><a href="/my-applications">Başvurularım</a>
+        <a href="/my-job-postings">İlanlarım</a>
+        """ + ('<a href="/admin">Admin Paneli</a>' if user["role"] == "admin" else "") + """
+        <form class="inline-form" method="post" action="/logout"><button type="submit">Logout</button></form>
+        """
+    else:
+        auth_links = '<a href="/login">Login</a><a href="/register">Register</a>'
+    page = re.sub(
+        r'<div class="nav-links">.*?</div>',
+        '<div class="nav-links"><a href="/about">Hakkımızda</a><a href="/alumni">Mezunlar</a>'
+        + '<a href="/announcements">Duyurular</a><a href="/job-postings">İş İlanları</a>'
+        + auth_links + '<a class="nav-cta" href="/docs">API Dokümantasyonu</a></div>',
+        INDEX_HTML,
+        count=1,
+        flags=re.DOTALL,
+    )
+    page = page.replace('href="/users"', 'href="/alumni"')
+    return HTMLResponse(page)
 
 
 @app.get("/about", response_class=HTMLResponse)
-def read_about():
-    return ABOUT_HTML
+def read_about(request: Request):
+    nav_links = render_nav_links("/about", request.state.user)
+    page = re.sub(
+        r'<div class="nav-links">.*?</div>',
+        f'<div class="nav-links">{nav_links}</div>',
+        ABOUT_HTML,
+        count=1,
+        flags=re.DOTALL,
+    )
+    return HTMLResponse(page)
 
 
 @app.get("/hello")

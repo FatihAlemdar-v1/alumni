@@ -14,6 +14,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-}
+      AUTH_TOKEN_TTL_MINUTES: ${AUTH_TOKEN_TTL_MINUTES:-30}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
 
   db:
     image: postgres:16

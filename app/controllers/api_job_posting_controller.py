@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.models import job_posting as job_posting_model
 from app.models.job_posting import JobPostingBase, JobPostingCreate, JobPostingUpdate
@@ -30,7 +30,12 @@ class ApiJobPostingController:
         self.nested_router.add_api_route("/{posting_id}", self.delete_for_user, methods=["DELETE"])
 
     # Direct routes
-    def create(self, data: JobPostingCreate) -> dict:
+    def create(self, request: Request, data: JobPostingCreate) -> dict:
+        if request.state.user["role"] != "admin":
+            data = JobPostingCreate(
+                **data.model_dump(exclude={"posted_by_user_id"}),
+                posted_by_user_id=request.state.user["id"],
+            )
         return job_posting_model.create_job_posting(data)
 
     def list_all(self) -> list[dict]:
@@ -39,10 +44,17 @@ class ApiJobPostingController:
     def get(self, posting_id: int) -> dict:
         return job_posting_model.get_job_posting(posting_id)
 
-    def replace(self, posting_id: int, data: JobPostingCreate) -> dict:
+    def replace(self, request: Request, posting_id: int, data: JobPostingCreate) -> dict:
+        if request.state.user["role"] != "admin":
+            data = JobPostingCreate(
+                **data.model_dump(exclude={"posted_by_user_id"}),
+                posted_by_user_id=request.state.user["id"],
+            )
         return job_posting_model.update_job_posting(posting_id, data)
 
-    def update(self, posting_id: int, data: JobPostingUpdate) -> dict:
+    def update(self, request: Request, posting_id: int, data: JobPostingUpdate) -> dict:
+        if request.state.user["role"] != "admin" and "posted_by_user_id" in data.model_fields_set:
+            data = data.model_copy(update={"posted_by_user_id": request.state.user["id"]})
         return job_posting_model.partial_update_job_posting(posting_id, data)
 
     def delete(self, posting_id: int) -> dict:

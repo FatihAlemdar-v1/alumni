@@ -24,6 +24,7 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("email", name="uq_users_email"),
         CheckConstraint("graduation_year BETWEEN 1950 AND 2100", name="ck_users_graduation_year"),
+        CheckConstraint("role IN ('admin', 'user')", name="ck_users_role"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -31,6 +32,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255))
     graduation_year: Mapped[int]
     department: Mapped[str] = mapped_column(String(100))
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role: Mapped[str] = mapped_column(String(20), server_default="user")
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(), server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(), server_default=text("CURRENT_TIMESTAMP"))
 
@@ -46,7 +49,6 @@ class User(Base):
 
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email!r}>"
-
 
 class UserCreate(BaseModel):
     name: str = Field(max_length=100)
@@ -71,66 +73,87 @@ def create_user(data: UserCreate) -> dict:
         with get_engine().begin() as conn:
             row = conn.execute(
                 text(
-                    "INSERT INTO users (name, email, graduation_year, department) "
-                    "VALUES (:name, :email, :graduation_year, :department) "
+                    f"INSERT INTO users (name, email, graduation_year, department) "
+                    f"VALUES (:name, :email, :graduation_year, :department) "
                     f"RETURNING {COLUMNS}"
                 ),
                 data.model_dump(),
             ).mappings().one()
-    except IntegrityError:
-        raise _email_taken()
-    return dict(row)
+            return dict(row)
+    except IntegrityError as err:
+        raise _email_taken() from err
 
 
 def get_users() -> list[dict]:
     with get_engine().connect() as conn:
         rows = conn.execute(text(f"SELECT {COLUMNS} FROM users ORDER BY id")).mappings().all()
-    return [dict(row) for row in rows]
+        return [dict(r) for r in rows]
 
 
 def get_user(user_id: int) -> dict:
     with get_engine().connect() as conn:
         row = conn.execute(
-            text(f"SELECT {COLUMNS} FROM users WHERE id = :id"), {"id": user_id}
-        ).mappings().first()
-    if row is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return dict(row)
+            text(f"SELECT {COLUMNS} FROM users WHERE id = :id"),
+            {"id": user_id},
+        ).mappings().one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        return dict(row)
 
 
-def _update(user_id: int, fields: dict) -> dict:
-    if not fields:
-        return get_user(user_id)
-    # Keys come from the Pydantic model's own field names, never from user input.
-    assignments = ", ".join(f"{key} = :{key}" for key in fields)
+def replace_user(user_id: int, data: UserCreate) -> dict:
     try:
         with get_engine().begin() as conn:
             row = conn.execute(
                 text(
-                    f"UPDATE users SET {assignments}, updated_at = CURRENT_TIMESTAMP "
-                    f"WHERE id = :id RETURNING {COLUMNS}"
+                    f"UPDATE users "
+                    f"SET name = :name, email = :email, graduation_year = :graduation_year, "
+                    f"    department = :department, updated_at = CURRENT_TIMESTAMP "
+                    f"WHERE id = :id "
+                    f"RETURNING {COLUMNS}"
                 ),
-                {**fields, "id": user_id},
-            ).mappings().first()
-    except IntegrityError:
-        raise _email_taken()
-    if row is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return dict(row)
+                {"id": user_id, **data.model_dump()},
+            ).mappings().one_or_none()
+            if row is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            return dict(row)
+    except IntegrityError as err:
+        raise _email_taken() from err
 
 
-def update_user(user_id: int, data: UserCreate) -> dict:
-    return _update(user_id, data.model_dump())
+def update_user(user_id: int, data: UserUpdate) -> dict:
+    fields = data.model_dump(exclude_unset=True)
+    if not fields:
+        return get_user(user_id)
+    set_clause = ", ".join(f"{col} = :{col}" for col in fields)
+    try:
+        with get_engine().begin() as conn:
+            row = conn.execute(
+                text(
+                    f"UPDATE users "
+                    f"SET {set_clause}, updated_at = CURRENT_TIMESTAMP "
+                    f"WHERE id = :id "
+                    f"RETURNING {COLUMNS}"
+                ),
+                {"id": user_id, **fields},
+            ).mappings().one_or_none()
+            if row is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            return dict(row)
+    except IntegrityError as err:
+        raise _email_taken() from err
 
 
 def partial_update_user(user_id: int, data: UserUpdate) -> dict:
-    return _update(user_id, data.model_dump(exclude_unset=True))
+    return update_user(user_id, data)
 
 
-def delete_user(user_id: int) -> None:
+def delete_user(user_id: int) -> dict:
     with get_engine().begin() as conn:
-        deleted = conn.execute(
-            text("DELETE FROM users WHERE id = :id RETURNING id"), {"id": user_id}
-        ).first()
-    if deleted is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        result = conn.execute(
+            text("DELETE FROM users WHERE id = :id"),
+            {"id": user_id},
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"message": "User deleted", "id": user_id}

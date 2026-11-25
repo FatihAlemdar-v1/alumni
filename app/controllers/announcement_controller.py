@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import ValidationError
 
@@ -23,8 +23,8 @@ class AnnouncementController:
         self.router.add_api_route("/{announcement_id}/edit", self.update, methods=["POST"])
         self.router.add_api_route("/{announcement_id}/delete", self.delete, methods=["POST"])
 
-    def list(self) -> HTMLResponse:
-        return HTMLResponse(render_announcement_list(announcement_model.get_announcements()))
+    def list(self, request: Request) -> HTMLResponse:
+        return HTMLResponse(render_announcement_list(announcement_model.get_announcements(), request.state.user))
 
     def create(
         self,
@@ -39,13 +39,13 @@ class AnnouncementController:
         announcement_model.create_announcement(data)
         return RedirectResponse(url="/announcements", status_code=303)
 
-    def get(self, announcement_id: int) -> HTMLResponse:
+    def get(self, request: Request, announcement_id: int) -> HTMLResponse:
         announcement = announcement_model.get_announcement(announcement_id)
-        return HTMLResponse(render_announcement_detail(announcement))
+        return HTMLResponse(render_announcement_detail(announcement, request.state.user))
 
-    def edit_form(self, announcement_id: int) -> HTMLResponse:
+    def edit_form(self, request: Request, announcement_id: int) -> HTMLResponse:
         announcement = announcement_model.get_announcement(announcement_id)
-        return HTMLResponse(render_announcement_edit_form(announcement))
+        return HTMLResponse(render_announcement_edit_form(announcement, request.state.user))
 
     # HTML forms can only send GET/POST, so update and delete use POST sub-routes.
     def update(

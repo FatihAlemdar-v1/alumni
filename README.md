@@ -19,8 +19,43 @@ This project is built incrementally week by week. It follows a clean architectur
 - **Containerization:** Docker & Docker Compose
 - **ORM & Migrations:** SQLAlchemy & Alembic
 - **Data Seeding:** Faker
+- **Authentication:** Bcrypt password hashes, JWT (HttpOnly cookie or Bearer token)
 
 ---
+
+## Authentication & Authorization
+
+Apply the current schema before starting authentication:
+
+```bash
+docker compose exec api alembic upgrade head
+```
+
+Set `AUTH_SECRET_KEY` in `.env` to a unique random secret of at least 32 characters. Generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Set `AUTH_COOKIE_SECURE=true` behind HTTPS; the local development default is `false`. Tokens use HS256 and expire after `AUTH_TOKEN_TTL_MINUTES` (30 by default). Passwords are stored as bcrypt hashes and never returned by API responses.
+
+Roles are `user` (assigned to every public registration) and `admin`. Admin access is required for `/admin`, user management, and announcement changes; users may only access their own profile, applications, and job postings. Anonymous requests to protected web pages are redirected to `/login`; protected API requests return `401`, and authenticated but unauthorized requests return `403`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET/POST /register` | Web account registration |
+| `GET/POST /login` | Web sign-in; sets an HttpOnly cookie |
+| `POST /logout` | Clears the browser auth cookie |
+| `POST /api/auth/register` | JSON registration; returns a JWT and sets a cookie |
+| `POST /api/auth/login` | JSON sign-in; returns a JWT and sets a cookie |
+| `POST /api/auth/logout` | Clear the auth cookie |
+| `GET /api/auth/me` | Current authenticated account |
+| `GET/POST /profile` | View/update the signed-in user's profile |
+| `GET /my-applications` | View/withdraw own applications |
+| `GET/POST /my-job-postings` | View, create, and delete own job postings |
+| `GET /admin` | Admin dashboard, role and user management |
+
+For API clients, send `Authorization: Bearer <access_token>` or use the HttpOnly cookie. Register an account, then grant an administrator role from the application container:
+
+```bash
+docker compose exec api python -m app.database.set_admin you@example.com
+```
+
+The command only promotes an existing account; register it first. Never expose or reuse the JWT secret across production environments.
 
 ## 📖 Project Design and Brand Guides
 

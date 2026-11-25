@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.models import application as application_model
 from app.models.application import (
@@ -44,8 +44,9 @@ class ApiApplicationController:
         self.posting_router.add_api_route("/{application_id}", self.update_for_posting, methods=["PATCH"])
 
     # Direct routes
-    def create(self, data: ApplicationCreate) -> dict:
-        return application_model.create_application(data.user_id, data.job_posting_id, data.cover_letter)
+    def create(self, request: Request, data: ApplicationCreate) -> dict:
+        user_id = data.user_id if request.state.user["role"] == "admin" else request.state.user["id"]
+        return application_model.create_application(user_id, data.job_posting_id, data.cover_letter)
 
     def list_all(self) -> list[dict]:
         return application_model.get_applications()
@@ -78,8 +79,11 @@ class ApiApplicationController:
     def list_for_posting(self, posting_id: int) -> list[dict]:
         return application_model.get_applications(job_posting_id=posting_id)
 
-    def create_for_posting(self, posting_id: int, data: PostingApplicationCreate) -> dict:
-        return application_model.create_application(data.user_id, posting_id, data.cover_letter)
+    def create_for_posting(
+        self, request: Request, posting_id: int, data: PostingApplicationCreate
+    ) -> dict:
+        user_id = data.user_id if request.state.user["role"] == "admin" else request.state.user["id"]
+        return application_model.create_application(user_id, posting_id, data.cover_letter)
 
     def get_for_posting(self, posting_id: int, application_id: int) -> dict:
         return application_model.get_application(application_id, job_posting_id=posting_id)

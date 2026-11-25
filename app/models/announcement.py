@@ -1,10 +1,27 @@
+from datetime import datetime
+
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import TIMESTAMP, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.connection import get_engine
+from app.models.base import Base
 
 COLUMNS = "id, title, content, author, created_at"
+
+
+class Announcement(Base):
+    """ORM mapping for announcements, kept in metadata for Alembic and model relationships."""
+
+    __tablename__ = "announcements"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    content: Mapped[str] = mapped_column(Text())
+    author: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(), server_default=text("CURRENT_TIMESTAMP"))
 
 
 class AnnouncementCreate(BaseModel):
